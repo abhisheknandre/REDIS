@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: redis-product-catalog
+
+  config:
+    import: optional:file:.env[.properties]
+
+  # Redis running in WSL
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      connect-timeout: 2s
+      timeout: 2s
+
+  # PostgreSQL connection
+  datasource:
+    url: jdbc:postgresql://localhost:5432/product_catalog
+    username: postgres
+    password: ${DB_PASSWORD}
+
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: update          # dev only; Flyway + validate later
+    show-sql: false             # was under hibernate: (ignored there)
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Read by CacheConfig
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m
+      key-prefix: "catalog::"
+
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  shutdown: graceful
+
+app:
+  cache:
+    ttl:
+      product: 30m
+
+# Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always      # use "never" in production
+      probes:
+        enabled: true           # needed for /actuator/health/liveness (Docker HEALTHCHECK)
+
+# Uncomment to debug caching
+# logging:
+#   level:
+#     org.springframework.cache: TRACE

@@ -2,12 +2,13 @@ services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    mem_limit: 256m
     environment:
       POSTGRES_DB: product_catalog
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
-      - postgres_data:/var/lib/postgresql   # PG 18+ layout
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d product_catalog"]
       interval: 10s
@@ -18,7 +19,15 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    mem_limit: 96m
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:
@@ -28,9 +37,9 @@ services:
       retries: 5
 
   app:
-    build: .
-    image: redis-product-catalog:latest
+    image: abhishek0806/redis-product-catalog:latest
     restart: unless-stopped
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,7 +52,8 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update   # fresh DB has no tables; use Flyway + validate in prod
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=60.0 -XX:+ExitOnOutOfMemoryError"
 
 volumes:
   postgres_data:
